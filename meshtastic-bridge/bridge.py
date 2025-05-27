@@ -5,13 +5,10 @@ import meshtastic.serial_interface
 import requests
 from pubsub import pub
 import os
+from flask import Flask, request, jsonify
 
 GO_ROUTER_URL = os.getenv("GO_ROUTER_URL", "http://go-router:8080/send-message")
 HEALTH_CHECK_URL = os.getenv("HEALTH_CHECK_URL", "http://go-router:8080/health")
-COMMAND_WHITELIST = ["!wsp", "!ping", "!help"]
-
-def is_whitelisted(message):
-    return any(message.startswith(cmd) for cmd in COMMAND_WHITELIST)
 
 def wait_for_go_router():
     print("Checking go-router health endpoint...")
@@ -33,8 +30,8 @@ def onReceive(packet, interface):
             return
 
         payload = decoded.get('text')
-        if not payload:
-            return
+        if not payload or not payload.startswith('!'):
+            return  # Only forward messages starting with '!'
 
         sender = packet.get('from', 'unknown')
         to = packet.get('to')
@@ -42,42 +39,60 @@ def onReceive(packet, interface):
 
         print(f"[FROM: {sender} TO: {to}] Payload: {payload}")
 
-        if not is_whitelisted(payload):
-            print("Command not whitelisted, ignoring.")
-            return
-
+        # Forward command messages to go-router
         data = {
             "message": payload,
             "timestamp": timestamp,
-            "from": sender
+            "from": sender,
+            "to": to,
         }
-
+        
+        print(f"Forwarding to go-router: {data}")
         response = requests.post(GO_ROUTER_URL, json=data)
-        print(f"Forwarded to Go router: {response.status_code} {response.text}")
+        # Use the go-router's response as the ack
+        if response.status_code == 200:
+            ack = response.text.strip() or "✅ Message delivered!"
+        else:
+            ack = "❌ Message could not be delivered."
+
+        interface.sendText(sender, ack)
 
     except Exception as e:
         print(f"Error handling packet: {e}")
 
 def onConnection(interface, topic=pub.AUTO_TOPIC):  # pylint: disable=unused-argument
-    """This is called when we (re)connect to the radio."""
     print("onconnection called")
     print(interface.myInfo)
 
+app = Flask(__name__)
+meshtastic_interface = None
+
+@app.route('/send-message', methods=['POST'])
+def send_message():
+    data = request.get_json()
+    to = data.get('to')
+    message = data.get('message')
+    print(f"Received request to send message to {to}: {message}")
+    if not to or not message:
+        return jsonify({'error': 'to and message are required'}), 400
+
+    try:
+        meshtastic_interface.sendText(to, message)
+        return jsonify({'status': 'sent'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def main():
+    global meshtastic_interface
     print("Starting Meshtastic bridge...")
     wait_for_go_router()
 
     dev_path = os.getenv("MESH_DEVICE_PATH", "/dev/ttyACM0")
-    interface = meshtastic.serial_interface.SerialInterface(devPath=dev_path)
+    meshtastic_interface = meshtastic.serial_interface.SerialInterface(devPath=dev_path)
     pub.subscribe(onReceive, "meshtastic.receive")
     pub.subscribe(onConnection, "meshtastic.connection.established")
 
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Stopping bridge...")
-        interface.close()
+    app.run(host="0.0.0.0", port=8080)
 
 if __name__ == "__main__":
     main()

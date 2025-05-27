@@ -12,6 +12,8 @@ services:
       - GO_ROUTER_URL=http://go-router:8080/send-message
       - HEALTH_CHECK_URL=http://go-router:8080/health
       - PYTHONUNBUFFERED=1
+    ports:
+      - "8082:8080"
     networks:
       - app-network
 
