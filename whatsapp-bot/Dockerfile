@@ -1,13 +1,13 @@
-# Use a Node.js image with Debian base for compatibility with Puppeteer
+# Use a Node.js image with Debian base
 FROM node:20-bullseye
 
-# Avoid Puppeteer warnings about running as root
+# Puppeteer config
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install dependencies for Chromium
+# Install Chromium from Debian
 RUN apt-get update && apt-get install -y \
-    wget \
+    chromium \
     ca-certificates \
     fonts-liberation \
     libappindicator3-1 \
@@ -43,29 +43,20 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxtst6 \
     xdg-utils \
-    lsb-release \
+    wget \
     gnupg \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Google Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-linux-signing-keyring.gpg \
- && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
- && apt-get update \
- && apt-get install -y google-chrome-stable \
+    lsb-release \
  && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+ # Set working directory
 WORKDIR /app
 
 # Copy files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy rest of the source
+# Copy app source
 COPY . .
 
-# Expose a port if needed (not required for WhatsApp client)
-# EXPOSE 3000
-
-# Run your app
+# Run the app
 CMD ["node", "index.js"]

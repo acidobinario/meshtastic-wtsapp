@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"strings"
 )
 
 const (
@@ -23,21 +24,27 @@ type WhatsAppMessage struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+// MeshtastiMessage represents incoming messages from meshtastic
+type MeshtasticMessage struct {
+	Message string `json:"message"`
+	Timestamp int64 `json:"timestamp"`
+}
+
 func main() {
 	log.Println("go-router starting, waiting for whatsapp-bot to be ready...")
 
 	// Wait until whatsapp-bot is responding
 	waitForWhatsAppBot()
 
-	// Send test message
-	err := sendWhatsAppMessage("56977788092@c.us", "Hello from go-router test!")
-	if err != nil {
-		log.Fatalf("Failed to send test message: %v", err)
-	}
-	log.Println("Test message sent successfully.")
-
 	// Start HTTP server to receive messages from whatsapp-bot
 	http.HandleFunc("/receive-message", receiveMessageHandler)
+	// HTTP handler to receive message from meshtastic-bridge and send it
+	http.HandleFunc("/send-message", sendMessageHandler)
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	log.Println("go-router listening on :8080 for incoming messages...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -84,5 +91,59 @@ func receiveMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("Received WhatsApp message from %s: %s\n", msg.From, msg.Body)
+	w.WriteHeader(http.StatusOK)
+}
+
+func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
+	var msg MeshtasticMessage
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Printf("Received Meshtastic message: %s", msg.Message)
+
+	// Command parsing
+	if strings.HasPrefix(msg.Message, "!wsp") {
+		parts := strings.Fields(msg.Message)
+		if len(parts) < 3 {
+			http.Error(w, "Invalid !wsp command. Format: !wsp <phone> <message>", http.StatusBadRequest)
+			return
+		}
+
+		// Extract phone number and message
+		phone := strings.TrimPrefix(parts[1], "+") // remove + sign if exists
+		fullMessage := strings.Join(parts[2:], " ")
+
+		err := sendWhatsAppMessage(phone+"@c.us", fullMessage)
+		if err != nil {
+			log.Printf("Failed to forward message to WhatsApp: %v", err)
+			http.Error(w, "Failed to forward message", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Forwarded to WhatsApp: %s → %s", phone, fullMessage)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Message forwarded to WhatsApp"))
+		return
+	}
+
+	if strings.HasPrefix(msg.Message, "!ping") {
+		w.Write([]byte("pong"))
+		return
+	}
+
+	if strings.HasPrefix(msg.Message, "!help") {
+		help := `
+Available commands:
+!wsp <phone> <message>  - Send a WhatsApp message
+!ping                   - Check if service is alive
+!help                   - Show this message
+`
+		w.Write([]byte(help))
+		return
+	}
+
+	// If not a known command
+	log.Printf("Unknown command or plain message: %s", msg.Message)
 	w.WriteHeader(http.StatusOK)
 }

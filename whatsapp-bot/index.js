@@ -6,47 +6,57 @@ const { Client, LocalAuth } = pkg;
 
 let isClientReady = false;
 
+console.log('Starting whatsapp-bot...');
+
 const app = express();
 app.use(bodyParser.json());
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    executablePath: '/usr/bin/chromium',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+    ],
   }
 });
 
 client.on('qr', (qr) => {
-    // Generate and scan this code with your phone
-    // Print QR code to terminal for easy scanning
-    qrcode.generate(qr, { small: true });
-    console.log('QR RECEIVED', qr);
+  console.log('QR RECEIVED', qr);
+  qrcode.generate(qr, { small: true });
 });
-
 
 client.on('ready', () => {
   isClientReady = true;
   console.log('Client is ready!');
 });
 
-client.on('message', message => {
-  console.log('Received message:', message.body);
-
-  if (message.body == '!ping') {
-    message.reply('pong');
-    //exit
-    // return;
+client.on('message', async message => {
+  let quoted = null;
+  if (message.hasQuotedMsg) {
+    const quotedMsg = await message.getQuotedMessage();
+    quoted = {
+      id: quotedMsg.id._serialized,
+      from: quotedMsg.from,
+      body: quotedMsg.body,
+    };
   }
 
-  // Forward incoming message to your Go service
-  // Example: POST to Go API (replace with your Go service URL)
+  // Forward everything to Go router
   fetch('http://go-router:8080/receive-message', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: message.from,
       body: message.body,
-      timestamp: message.timestamp
+      timestamp: message.timestamp,
+      id: message.id._serialized,
+      quoted,
     }),
   }).catch(console.error);
 });
@@ -60,8 +70,8 @@ app.post('/send-message', async (req, res) => {
 
   try {
     const chatId = number.includes('@c.us') ? number : `${number}@c.us`;
-    await client.sendMessage(chatId, message);
-    res.json({ status: 'Message sent' });
+    const sentMsg = await client.sendMessage(chatId, message);
+    res.json({ status: 'Message sent', id: sentMsg.id._serialized });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send message' });
@@ -75,7 +85,6 @@ app.get('/', (req, res) => {
     res.status(503).send('WhatsApp client not ready');
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

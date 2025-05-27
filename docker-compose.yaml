@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  meshtastic-bridge:
+    build: ./meshtastic-bridge
+    restart: unless-stopped
+    privileged: true  # Needed to access /dev/ttyUSBx
+    devices:
+      - "/dev/ttyACM0:/dev/ttyACM0"
+    environment:
+      - MESH_DEVICE_PATH=/dev/ttyACM0
+      - GO_ROUTER_URL=http://go-router:8080/send-message
+      - HEALTH_CHECK_URL=http://go-router:8080/health
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-network
+
   whatsapp-bot:
     build: ./whatsapp-bot
     volumes:
