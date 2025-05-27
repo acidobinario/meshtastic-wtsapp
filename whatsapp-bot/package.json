@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "whatsapp-web.js": "^1.21.1",
+    "qrcode-terminal": "^0.12.0",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^20.7.4"
+  },
+  "type": "module"
+}

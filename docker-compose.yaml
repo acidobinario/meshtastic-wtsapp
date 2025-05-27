@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  whatsapp-bot:
+    build: ./whatsapp-bot
+    volumes:
+      - ./wwebjs_cache:/usr/src/app/.wwebjs_cache
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+  go-router:
+    build: ./go-router
+    depends_on:
+      - whatsapp-bot
+    ports:
+      - "8081:8080"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
