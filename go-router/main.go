@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -21,9 +20,9 @@ const (
 // QuotedMessage represents a message that can be quoted in WhatsApp.
 // It contains the ID of the message, the sender's name, and the body of the message.
 type QuotedMessage struct {
-    ID   string `json:"id"`
-    From string `json:"from"`
-    Body string `json:"body"`
+	ID   string `json:"id"`
+	From string `json:"from"`
+	Body string `json:"body"`
 }
 
 // WhatsAppMessage represents incoming WhatsApp messages forwarded by the bot.
@@ -37,15 +36,15 @@ type WhatsAppMessage struct {
 
 // MeshtasticMessage represents incoming messages from meshtastic
 type MeshtasticMessage struct {
-	To 	 		string `json:"to"`
-	Message 	string `json:"message"`
-	Timestamp 	int64 `json:"timestamp"`
+	To        string `json:"to"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 // Map WhatsApp message ID to Meshtastic device ID
 var (
-    replyMap = make(map[string]string)
-    mapMu    sync.Mutex
+	replyMap = make(map[string]string)
+	mapMu    sync.Mutex
 )
 
 func main() {
@@ -123,49 +122,49 @@ func receiveMessageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
-    var msg MeshtasticMessage
-    if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
-        http.Error(w, "Invalid request", http.StatusBadRequest)
-        return
-    }
-    log.Printf("Received Meshtastic message from %s: %s", msg.To, msg.Message)
+	var msg MeshtasticMessage
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	log.Printf("Received Meshtastic message from %s: %s", msg.To, msg.Message)
 
-    // Command parsing
-    if strings.HasPrefix(msg.Message, "!wsp") {
-        parts := strings.Fields(msg.Message)
-        if len(parts) < 3 {
-            http.Error(w, "Invalid !wsp command. Format: !wsp <phone> <message>", http.StatusBadRequest)
-            return
-        }
+	// Command parsing
+	if strings.HasPrefix(msg.Message, "!wsp") {
+		parts := strings.Fields(msg.Message)
+		if len(parts) < 3 {
+			http.Error(w, "Invalid !wsp command. Format: !wsp <phone> <message>", http.StatusBadRequest)
+			return
+		}
 
-        // Extract phone number and message
-        phone := strings.TrimPrefix(parts[1], "+") // remove + sign if exists
-        fullMessage := strings.Join(parts[2:], " ")
+		// Extract phone number and message
+		phone := strings.TrimPrefix(parts[1], "+") // remove + sign if exists
+		fullMessage := strings.Join(parts[2:], " ")
 
-        // Send WhatsApp message and store mapping
-        id, err := sendWhatsAppMessage(phone+"@c.us", fullMessage)
-        if err != nil {
-            log.Printf("Failed to forward message to WhatsApp: %v", err)
-            http.Error(w, "❌ Could not send WhatsApp message.", http.StatusInternalServerError)
-            return
-        }
-        mapMu.Lock()
-        replyMap[id] = msg.To // Map WhatsApp message ID to Meshtastic device ID
-        mapMu.Unlock()
-        log.Printf("Mapped WhatsApp msg ID %s to device %s", id, msg.To)
-        w.Write([]byte("✅ WhatsApp message sent!"))
-        return
-    }
+		// Send WhatsApp message and store mapping
+		id, err := sendWhatsAppMessage(phone+"@c.us", fullMessage)
+		if err != nil {
+			log.Printf("Failed to forward message to WhatsApp: %v", err)
+			http.Error(w, "❌ Could not send WhatsApp message.", http.StatusInternalServerError)
+			return
+		}
+		mapMu.Lock()
+		replyMap[id] = msg.To // Map WhatsApp message ID to Meshtastic device ID
+		mapMu.Unlock()
+		log.Printf("Mapped WhatsApp msg ID %s to device %s", id, msg.To)
+		w.Write([]byte("✅ WhatsApp message sent!"))
+		return
+	}
 
-    w.Write([]byte("✅ Command received!"))
+	w.Write([]byte("✅ Command received!"))
 }
 
 // Forwards a message to a Meshtastic device via the bridge
 func forwardToMeshtastic(deviceID, message string) {
-    payload := map[string]string{
-        "to":      deviceID,
-        "message": message,
-    }
-    body, _ := json.Marshal(payload)
-    http.Post(bridgeURL, "application/json", bytes.NewBuffer(body))
+	payload := map[string]string{
+		"to":      deviceID,
+		"message": message,
+	}
+	body, _ := json.Marshal(payload)
+	http.Post(bridgeURL, "application/json", bytes.NewBuffer(body))
 }
