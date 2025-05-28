@@ -149,7 +149,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		mapMu.Lock()
-		replyMap[id] = msg.To // Map WhatsApp message ID to Meshtastic device ID
+		replyMap[id] = msg.From // CORRECT: this maps to the original sender
 		mapMu.Unlock()
 		log.Printf("Mapped WhatsApp msg ID %s to device %s", id, msg.To)
 		w.Write([]byte("✅ WhatsApp message sent!"))
