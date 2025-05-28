@@ -55,7 +55,7 @@ def onReceive(packet, interface):
         else:
             ack = "❌ Message could not be delivered."
 
-        interface.sendText(sender, ack)
+        interface.sendText(str(sender), ack)
 
     except Exception as e:
         print(f"Error handling packet: {e}")
