@@ -176,12 +176,12 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
     // Handle !help
     if strings.HasPrefix(msg.Message, "!help") {
-        helpText := "🤖 Comandos disponibles:\n" +
-            "!wsp <fono> <mensaje> - Enviar mensaje WhatsApp\n" +
-            "!clima <ciudad> - Clima actual (por defecto: Santiago)\n" +
-            "!sismo - Último sismo en Chile\n" +
-            "!ping - Verificar conexión\n" +
-            "!help - Mostrar este mensaje de ayuda"
+        helpText := "Comandos:\n"+
+            "!wsp <fono> <msg>\n"+
+            "!clima <ciudad>\n"+
+            "!sismo\n"+
+            "!ping\n"+
+            "!help"
         w.Write([]byte(helpText))
         return
     }
@@ -199,8 +199,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         if len(parts) >= 2 {
             city = strings.Join(parts[1:], " ")
         }
-        weatherURL := "https://wttr.in/" + url.QueryEscape(city) +
-            "?format=%x+Humedad:%h+Temp:%t+Sensación:%f+Lugar:%l&lang=es"
+        weatherURL := "https://wttr.in/" + url.QueryEscape(city) + "?format=%C+Humedad:%h+Temp:%t+Sensación:%f+Lugar:%l&lang=es"
         resp, err := http.Get(weatherURL)
         if err != nil {
             w.Write([]byte("No se pudo obtener el clima."))
