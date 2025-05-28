@@ -193,7 +193,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
     // Handle !clima (weather)
     if strings.HasPrefix(msg.Message, "!clima") {
         parts := strings.Fields(msg.Message)
-        city := "Santiago" // Ciudad por defecto
+        city := "Santiago, Chile" // Ciudad por defecto
         if len(parts) >= 2 {
             city = strings.Join(parts[1:], " ")
         }
