@@ -96,9 +96,11 @@ def send_message():
         return jsonify({'error': 'to and message are required'}), 400
 
     try:
-        meshtastic_interface.sendText(to, message)
+        dest_id = int(to) if not isinstance(to, int) else to
+        meshtastic_interface.sendText(message, dest_id)
         return jsonify({'status': 'sent'})
     except Exception as e:
+        print(f"Error in sendText: {e}")
         return jsonify({'error': str(e)}), 500
 
 def main():
