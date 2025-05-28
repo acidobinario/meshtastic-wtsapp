@@ -25,37 +25,54 @@ def wait_for_go_router():
 
 def onReceive(packet, interface):
     try:
+        print(f"Received packet: {packet}")
         decoded = packet.get('decoded')
         if not decoded:
+            print("No decoded field in packet.")
             return
 
         payload = decoded.get('text')
+        print(f"Decoded payload: {payload!r}")
         if not payload or not payload.startswith('!'):
+            print("Payload missing or does not start with '!'. Not forwarding.")
             return  # Only forward messages starting with '!'
 
         sender = packet.get('from', 'unknown')
         to = packet.get('to')
         timestamp = int(time.time())
 
+        print(f"Sender: {sender} (type: {type(sender)}), To: {to} (type: {type(to)})")
         print(f"[FROM: {sender} TO: {to}] Payload: {payload}")
 
         # Forward command messages to go-router
         data = {
             "message": payload,
             "timestamp": timestamp,
-            "from": sender,
-            "to": to,
+            "from": str(sender),
+            "to": str(to),
         }
         
         print(f"Forwarding to go-router: {data}")
-        response = requests.post(GO_ROUTER_URL, json=data)
+        try:
+            response = requests.post(GO_ROUTER_URL, json=data)
+            print(f"Go-router response status: {response.status_code}")
+            print(f"Go-router response text: {response.text!r}")
+        except Exception as e:
+            print(f"Error sending to go-router: {e}")
+            interface.sendText(str(sender), "❌ Could not contact server.")
+            return
+
         # Use the go-router's response as the ack
         if response.status_code == 200:
             ack = response.text.strip() or "✅ Message delivered!"
         else:
-            ack = "❌ Message could not be delivered."
+            ack = f"❌ Message could not be delivered. (Status: {response.status_code})"
 
-        interface.sendText(str(sender), ack)
+        print(f"Sending ack to device {sender}: {ack!r}")
+        try:
+            interface.sendText(str(sender), ack)
+        except Exception as e:
+            print(f"Error sending ack to device: {e}")
 
     except Exception as e:
         print(f"Error handling packet: {e}")
