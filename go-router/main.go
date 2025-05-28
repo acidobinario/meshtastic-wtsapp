@@ -15,6 +15,7 @@ const (
 	sendMessageEndpoint = whatsappBotURL + "/send-message"
 	healthCheckEndpoint = whatsappBotURL + "/"
 	bridgeURL           = "http://meshtastic-bridge:8080/send-message"
+	maxMessagesPerMinute = 5 // adjust as needed
 )
 
 // QuotedMessage represents a message that can be quoted in WhatsApp.
@@ -47,6 +48,15 @@ var (
 	replyMap = make(map[string]string)
 	mapMu    sync.Mutex
 )
+
+type rateLimiter struct {
+    mu        sync.Mutex
+    lastReset time.Time
+    count     int
+}
+
+var deviceLimiters = make(map[string]*rateLimiter)
+var deviceLimitersMu sync.Mutex
 
 func main() {
 	log.Println("go-router starting, waiting for whatsapp-bot to be ready...")
@@ -99,6 +109,29 @@ func sendWhatsAppMessage(number, message string) (string, error) {
 	return result.ID, nil
 }
 
+func allowMessage(deviceID string) bool {
+    deviceLimitersMu.Lock()
+    rl, exists := deviceLimiters[deviceID]
+    if !exists {
+        rl = &rateLimiter{lastReset: time.Now(), count: 0}
+        deviceLimiters[deviceID] = rl
+    }
+    deviceLimitersMu.Unlock()
+
+    rl.mu.Lock()
+    defer rl.mu.Unlock()
+    now := time.Now()
+    if now.Sub(rl.lastReset) > time.Minute {
+        rl.lastReset = now
+        rl.count = 0
+    }
+    if rl.count >= maxMessagesPerMinute {
+        return false
+    }
+    rl.count++
+    return true
+}
+
 func receiveMessageHandler(w http.ResponseWriter, r *http.Request) {
 	var msg WhatsAppMessage
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
@@ -123,11 +156,18 @@ func receiveMessageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
-	var msg MeshtasticMessage
-	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
+    var msg MeshtasticMessage
+    if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    // Rate limiting per device
+    if !allowMessage(msg.From) {
+        http.Error(w, "❌ Rate limit exceeded. Please wait before sending more messages.", http.StatusTooManyRequests)
+        return
+    }
+
 	log.Printf("Received Meshtastic message from %s: %s", msg.To, msg.Message)
 
 	// Command parsing
