@@ -37,6 +37,7 @@ type WhatsAppMessage struct {
 // MeshtasticMessage represents incoming messages from meshtastic
 type MeshtasticMessage struct {
 	To        string `json:"to"`
+	From 	  string `json:"from"`
 	Message   string `json:"message"`
 	Timestamp int64  `json:"timestamp"`
 }
