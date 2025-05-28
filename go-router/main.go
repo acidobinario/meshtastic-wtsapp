@@ -193,13 +193,12 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
     // Handle !clima (weather)
     if strings.HasPrefix(msg.Message, "!clima") {
         parts := strings.Fields(msg.Message)
-        if len(parts) < 2 {
-            w.Write([]byte("Uso: !clima <ciudad>"))
-            return
+        city := "Santiago" // Ciudad por defecto
+        if len(parts) >= 2 {
+            city = strings.Join(parts[1:], " ")
         }
-        city := strings.Join(parts[1:], " ")
-        // wttr.in supports lang=es for Spanish
-        weatherURL := "https://wttr.in/" + url.QueryEscape(city) + "?format=3&lang=es"
+        weatherURL := "https://wttr.in/" + url.QueryEscape(city) +
+            "?format=%x+Humedad:%h+Temp:%t+Sensación:%f+Lugar:%l&lang=es"
         resp, err := http.Get(weatherURL)
         if err != nil {
             w.Write([]byte("No se pudo obtener el clima."))
@@ -207,7 +206,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         }
         defer resp.Body.Close()
         weather, _ := io.ReadAll(resp.Body)
-        w.Write(weather)
+        w.Write([]byte(string(weather)))
         return
     }
 
