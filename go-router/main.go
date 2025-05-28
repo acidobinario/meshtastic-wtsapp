@@ -168,36 +168,52 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-	log.Printf("Received Meshtastic message from %s: %s", msg.To, msg.Message)
+    log.Printf("Received Meshtastic message from %s: %s", msg.From, msg.Message)
 
-	// Command parsing
-	if strings.HasPrefix(msg.Message, "!wsp") {
-		parts := strings.Fields(msg.Message)
-		if len(parts) < 3 {
-			http.Error(w, "Invalid !wsp command. Format: !wsp <phone> <message>", http.StatusBadRequest)
-			return
-		}
+    // Handle !help
+    if strings.HasPrefix(msg.Message, "!help") {
+        helpText := "🤖 Available commands:\n" +
+            "!wsp <phone> <message> - Send WhatsApp message\n" +
+            "!ping - Check if the bridge is alive\n" +
+            "!help - Show this help message"
+        w.Write([]byte(helpText))
+        return
+    }
 
-		// Extract phone number and message
-		phone := strings.TrimPrefix(parts[1], "+") // remove + sign if exists
-		fullMessage := strings.Join(parts[2:], " ")
+    // Handle !ping
+    if strings.HasPrefix(msg.Message, "!ping") {
+        w.Write([]byte("pong"))
+        return
+    }
 
-		// Send WhatsApp message and store mapping
-		id, err := sendWhatsAppMessage(phone+"@c.us", fullMessage)
-		if err != nil {
-			log.Printf("Failed to forward message to WhatsApp: %v", err)
-			http.Error(w, "❌ Could not send WhatsApp message.", http.StatusInternalServerError)
-			return
-		}
-		mapMu.Lock()
-		replyMap[id] = msg.From // CORRECT: this maps to the original sender
-		mapMu.Unlock()
-		log.Printf("Mapped WhatsApp msg ID %s to device %s", id, msg.To)
-		w.Write([]byte("✅ WhatsApp message sent!"))
-		return
-	}
+    // Command parsing
+    if strings.HasPrefix(msg.Message, "!wsp") {
+        parts := strings.Fields(msg.Message)
+        if len(parts) < 3 {
+            http.Error(w, "Invalid !wsp command. Format: !wsp <phone> <message>", http.StatusBadRequest)
+            return
+        }
 
-	w.Write([]byte("✅ Command received!"))
+        // Extract phone number and message
+        phone := strings.TrimPrefix(parts[1], "+") // remove + sign if exists
+        fullMessage := strings.Join(parts[2:], " ")
+
+        // Send WhatsApp message and store mapping
+        id, err := sendWhatsAppMessage(phone+"@c.us", fullMessage)
+        if err != nil {
+            log.Printf("Failed to forward message to WhatsApp: %v", err)
+            http.Error(w, "❌ Could not send WhatsApp message.", http.StatusInternalServerError)
+            return
+        }
+        mapMu.Lock()
+        replyMap[id] = msg.From // CORRECT: this maps to the original sender
+        mapMu.Unlock()
+        log.Printf("Mapped WhatsApp msg ID %s to device %s", id, msg.From)
+        w.Write([]byte("✅ WhatsApp message sent!"))
+        return
+    }
+
+    w.Write([]byte("✅ Command received!"))
 }
 
 // Forwards a message to a Meshtastic device via the bridge
