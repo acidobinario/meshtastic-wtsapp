@@ -70,7 +70,9 @@ def onReceive(packet, interface):
 
         print(f"Sending ack to device {sender}: {ack!r}")
         try:
-            interface.sendText(str(sender), ack)
+            # Ensure sender is an int for destinationId
+            dest_id = int(sender) if not isinstance(sender, int) else sender
+            interface.sendText(ack, dest_id)
         except Exception as e:
             print(f"Error sending ack to device: {e}")
 
