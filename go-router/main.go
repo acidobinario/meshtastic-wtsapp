@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -186,6 +190,58 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Handle !clima (weather)
+    if strings.HasPrefix(msg.Message, "!clima") {
+        parts := strings.Fields(msg.Message)
+        if len(parts) < 2 {
+            w.Write([]byte("Uso: !clima <ciudad>"))
+            return
+        }
+        city := strings.Join(parts[1:], " ")
+        // wttr.in supports lang=es for Spanish
+        weatherURL := "https://wttr.in/" + url.QueryEscape(city) + "?format=3&lang=es"
+        resp, err := http.Get(weatherURL)
+        if err != nil {
+            w.Write([]byte("No se pudo obtener el clima."))
+            return
+        }
+        defer resp.Body.Close()
+        weather, _ := io.ReadAll(resp.Body)
+        w.Write(weather)
+        return
+    }
+
+    // Handle !sismo (earthquake)
+    if strings.HasPrefix(msg.Message, "!sismo") {
+        // USGS GeoRSS feed for earthquakes
+        feedURL := "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.atom"
+        resp, err := http.Get(feedURL)
+        if err != nil {
+            w.Write([]byte("No se pudo obtener información de sismos."))
+            return
+        }
+        defer resp.Body.Close()
+        var feed Feed
+        if err := xml.NewDecoder(resp.Body).Decode(&feed); err != nil {
+            w.Write([]byte("No se pudo leer la información de sismos."))
+            return
+        }
+        // Buscar los sismos en Chile
+        found := false
+        for _, entry := range feed.Entries {
+            matched, _ := regexp.MatchString(`Chile`, entry.Title)
+            if matched {
+                w.Write([]byte("Último sismo en Chile:\n" + entry.Title))
+                found = true
+                break
+            }
+        }
+        if !found {
+            w.Write([]byte("No hay sismos recientes en Chile."))
+        }
+        return
+    }
+
     // Command parsing
     if strings.HasPrefix(msg.Message, "!wsp") {
         parts := strings.Fields(msg.Message)
@@ -224,4 +280,13 @@ func forwardToMeshtastic(deviceID, message string) {
 	}
 	body, _ := json.Marshal(payload)
 	http.Post(bridgeURL, "application/json", bytes.NewBuffer(body))
+}
+
+// For USGS GeoRSS feed (last 24h, M2.5+ worldwide)
+type Entry struct {
+    Title string `xml:"title"`
+    Summary string `xml:"summary"`
+}
+type Feed struct {
+    Entries []Entry `xml:"entry"`
 }
