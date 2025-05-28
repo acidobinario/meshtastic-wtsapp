@@ -230,7 +230,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         for _, entry := range feed.Entries {
             matched, _ := regexp.MatchString(`Chile`, entry.Title)
             if matched {
-                w.Write([]byte("Último sismo en Chile:\n" + entry.Title))
+                w.Write([]byte("Último sismo en Chile:\n" + entry.Title + "\n" + entry.Summary))
                 found = true
                 break
             }
