@@ -25,7 +25,7 @@ def wait_for_go_router():
 
 def onReceive(packet, interface):
     try:
-        print(f"Received packet: {packet}")
+        # print(f"Received packet: {packet}")
         decoded = packet.get('decoded')
         if not decoded:
             print("No decoded field in packet.")
