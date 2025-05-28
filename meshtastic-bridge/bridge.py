@@ -32,9 +32,9 @@ def onReceive(packet, interface):
             return
 
         payload = decoded.get('text')
-        print(f"Decoded payload: {payload!r}")
+        # print(f"Decoded payload: {payload!r}")
         if not payload or not payload.startswith('!'):
-            print("Payload missing or does not start with '!'. Not forwarding.")
+            # print("Payload missing or does not start with '!'. Not forwarding.")
             return  # Only forward messages starting with '!'
 
         sender = packet.get('from', 'unknown')

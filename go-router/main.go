@@ -15,7 +15,7 @@ const (
 	sendMessageEndpoint = whatsappBotURL + "/send-message"
 	healthCheckEndpoint = whatsappBotURL + "/"
 	bridgeURL           = "http://meshtastic-bridge:8080/send-message"
-	maxMessagesPerMinute = 30 // adjust as needed
+	maxMessagesPerMinute = 10 // adjust as needed
 )
 
 // QuotedMessage represents a message that can be quoted in WhatsApp.
