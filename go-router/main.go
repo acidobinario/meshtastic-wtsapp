@@ -176,10 +176,12 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
     // Handle !help
     if strings.HasPrefix(msg.Message, "!help") {
-        helpText := "🤖 Available commands:\n" +
-            "!wsp <phone> <message> - Send WhatsApp message\n" +
-            "!ping - Check if the bridge is alive\n" +
-            "!help - Show this help message"
+        helpText := "🤖 Comandos disponibles:\n" +
+            "!wsp <fono> <mensaje> - Enviar mensaje WhatsApp\n" +
+            "!clima <ciudad> - Clima actual (por defecto: Santiago)\n" +
+            "!sismo - Último sismo en Chile\n" +
+            "!ping - Verificar conexión\n" +
+            "!help - Mostrar este mensaje de ayuda"
         w.Write([]byte(helpText))
         return
     }
