@@ -213,7 +213,6 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
     // Handle !sismo (earthquake)
     if strings.HasPrefix(msg.Message, "!sismo") {
-        // USGS GeoRSS feed for earthquakes
         feedURL := "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.atom"
         resp, err := http.Get(feedURL)
         if err != nil {
@@ -226,12 +225,33 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
             w.Write([]byte("No se pudo leer la información de sismos."))
             return
         }
-        // Buscar los sismos en Chile
         found := false
         for _, entry := range feed.Entries {
             matched, _ := regexp.MatchString(`Chile`, entry.Title)
             if matched {
-                w.Write([]byte("Último sismo en Chile:\n" + entry.Title + "\n" + entry.Summary))
+                // Extract time, location, and depth from summary (very basic)
+                summary := entry.Summary
+                // Remove HTML tags
+                re := regexp.MustCompile(`<[^>]*>`)
+                summary = re.ReplaceAllString(summary, "")
+                // Optionally, keep only the first 2-3 lines
+                lines := strings.Split(summary, "\n")
+                shortSummary := ""
+                for _, line := range lines {
+                    line = strings.TrimSpace(line)
+                    if line != "" && !strings.HasPrefix(line, "DYFI") {
+                        shortSummary += line + " "
+                    }
+                    if strings.Contains(line, "Depth") {
+                        break
+                    }
+                }
+                msg := "Último sismo en Chile:\n" + entry.Title + "\n" + shortSummary
+                // Truncate if too long
+                if len(msg) > 200 {
+                    msg = msg[:197] + "..."
+                }
+                w.Write([]byte(msg))
                 found = true
                 break
             }
