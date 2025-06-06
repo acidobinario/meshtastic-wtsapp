@@ -39,6 +39,7 @@ def onReceive(packet, interface):
 
         sender = packet.get('from', 'unknown')
         to = packet.get('to')
+        my_id = interface.myInfo['num']  # Get your own device ID
         timestamp = int(time.time())
 
         print(f"Sender: {sender} (type: {type(sender)}), To: {to} (type: {type(to)})")
@@ -69,8 +70,11 @@ def onReceive(packet, interface):
             ack = f"❌ Message could not be delivered. (Status: {response.status_code})"
 
         try:
-            # Respond to the same channel or user as the original message
-            dest_id = to if to is not None else sender
+            # Respond to the sender for direct messages, or to the channel otherwise
+            if to == my_id:
+                dest_id = sender
+            else:
+                dest_id = to if to is not None else sender
             dest_id = int(dest_id)
             print(f"Sending ack to device/channel {dest_id}: {ack!r}")
             interface.sendText(ack, dest_id)
