@@ -229,29 +229,31 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
         for _, entry := range feed.Entries {
             matched, _ := regexp.MatchString(`Chile`, entry.Title)
             if matched {
-                // Extract time, location, and depth from summary (very basic)
-                summary := entry.Summary
-                // Remove HTML tags
+                // Remove HTML tags from summary
                 re := regexp.MustCompile(`<[^>]*>`)
-                summary = re.ReplaceAllString(summary, "")
-                // Optionally, keep only the first 2-3 lines
+                summary := re.ReplaceAllString(entry.Summary, "")
+                // Extract only Time and Depth lines
+                var timeStr, depthStr string
                 lines := strings.Split(summary, "\n")
-                shortSummary := ""
                 for _, line := range lines {
                     line = strings.TrimSpace(line)
-                    if line != "" && !strings.HasPrefix(line, "DYFI") {
-                        shortSummary += line + " "
+                    if strings.HasPrefix(line, "Time") {
+                        timeStr = strings.TrimPrefix(line, "Time")
+                        timeStr = strings.TrimSpace(timeStr)
                     }
-                    if strings.Contains(line, "Depth") {
-                        break
+                    if strings.HasPrefix(line, "Depth") {
+                        depthStr = strings.TrimPrefix(line, "Depth")
+                        depthStr = strings.TrimSpace(depthStr)
                     }
                 }
-                msg := "Último sismo en Chile:\n" + entry.Title + "\n" + shortSummary
-                // Truncate if too long
-                if len(msg) > 200 {
-                    msg = msg[:197] + "..."
+                msg := entry.Title
+                if timeStr != "" {
+                    msg += "\nHora: " + timeStr
                 }
-                w.Write([]byte(msg))
+                if depthStr != "" {
+                    msg += "\nProfundidad: " + depthStr
+                }
+                w.Write([]byte("Último sismo en Chile:\n" + msg))
                 found = true
                 break
             }
