@@ -73,6 +73,7 @@ def onReceive(packet, interface):
             # Respond to the same channel or user as the original message
             dest_id = to if to is not None else sender
             dest_id = int(dest_id)
+            print(f"Sending ack to device/channel {dest_id}: {ack!r}")
             interface.sendText(ack, dest_id)
         except Exception as e:
             print(f"Error sending ack to device/channel: {e}")
