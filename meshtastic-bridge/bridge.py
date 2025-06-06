@@ -39,7 +39,7 @@ def onReceive(packet, interface):
 
         sender = packet.get('from', 'unknown')
         to = packet.get('to')
-        my_id = interface.myInfo.num
+        my_id = interface.myInfo.my_node_num
         timestamp = int(time.time())
 
         print(f"Sender: {sender} (type: {type(sender)}), To: {to} (type: {type(to)})")
