@@ -39,7 +39,7 @@ def onReceive(packet, interface):
 
         sender = packet.get('from', 'unknown')
         to = packet.get('to')
-        my_id = interface.myInfo['num']  # Get your own device ID
+        my_id = interface.myInfo.num
         timestamp = int(time.time())
 
         print(f"Sender: {sender} (type: {type(sender)}), To: {to} (type: {type(to)})")
