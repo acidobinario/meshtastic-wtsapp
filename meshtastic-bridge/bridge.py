@@ -68,7 +68,6 @@ def onReceive(packet, interface):
         else:
             ack = f"❌ Message could not be delivered. (Status: {response.status_code})"
 
-        print(f"Sending ack to device/channel {dest_id}: {ack!r}")
         try:
             # Respond to the same channel or user as the original message
             dest_id = to if to is not None else sender
